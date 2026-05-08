@@ -23,8 +23,9 @@ def load_model():
     for m_path in models_to_try:
         try:
             if pathlib.Path(m_path).exists():
-                # compile=False is crucial for cross-version compatibility
-                model = tf.keras.models.load_model(m_path, compile=False)
+                # compile=False and safe_mode=False for maximum compatibility
+                model = tf.keras.models.load_model(m_path, compile=False, safe_mode=False)
+
                 return model, None
         except Exception as e:
             errors.append(f"<b>{m_path}</b>: {str(e)}")
