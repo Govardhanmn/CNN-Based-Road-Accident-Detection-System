@@ -17,16 +17,16 @@ st.set_page_config(
 @st.cache_resource(show_spinner=False)
 def load_model():
     try:
-        model = tf.keras.models.load_model('best_cnn_model.keras', compile=False)
-        return model, None
+        model = tf.keras.models.load_model(
+            'mobilenetv2_transfer_model.h5',  # ✅ your .h5 model
+            compile=False  # ✅ prevents BatchNorm / version errors
+        )
+        return model
     except Exception as e:
-        return None, str(e)
+        st.error(f"❌ Model loading failed: {e}")
+        return None
 
-model, load_error = load_model()
-
-if load_error:
-    st.error(f"Error loading model: {load_error}")
-    st.info("Check if best_cnn_model.keras is present in the repository.")
+model = load_model()
 
 # ── Background image ──────────────────────────────────────────────────────────
 @st.cache_data
@@ -323,7 +323,11 @@ with side_col:
             img_p = img.resize((128, 128))
             arr = img_to_array(img_p)
             arr = np.expand_dims(arr, axis=0) / 255.0
-            prob = model.predict(arr, verbose=0)[0][0]
+            if model is not None:
+                prob = model.predict(arr, verbose=0)[0][0]
+            else:
+                st.error("Model not loaded properly.")
+                prob = 1.0
             accident = prob < 0.5
             conf = (1-prob)*100 if accident else prob*100
             
