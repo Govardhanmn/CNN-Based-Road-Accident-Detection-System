@@ -16,12 +16,25 @@ st.set_page_config(
 # ── Resources ──────────────────────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_model():
-    try:
-        return tf.keras.models.load_model('best_cnn_model.keras')
-    except:
-        return None
+    models_to_try = ['best_cnn_model_fixed.keras', 'best_cnn_model.keras']
+    errors = []
+    for m_path in models_to_try:
+        try:
+            if pathlib.Path(m_path).exists():
+                model = tf.keras.models.load_model(m_path, compile=False)
+                return model, None
+        except Exception as e:
+            errors.append(f"Error loading {m_path}: {str(e)}")
+    
+    error_msg = " | ".join(errors) if errors else "Model files not found."
+    return None, error_msg
 
-model = load_model()
+model, load_error = load_model()
+
+if load_error:
+    st.error(f"⚠️ Model Loading Failed")
+    st.info(f"Details: {load_error}")
+    st.stop()
 
 # ── Background image ──────────────────────────────────────────────────────────
 @st.cache_data
