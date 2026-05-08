@@ -2,133 +2,103 @@ import streamlit as st
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import img_to_array
-from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input, decode_predictions
+from tensorflow.keras.models import model_from_json
 from PIL import Image
-import base64, pathlib, time, datetime
+import h5py
+import json
+import time
 
 # ── Page Config ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="VisionAI · Intelligent Surveillance",
+    page_title="VisionAI · Detection System",
     page_icon="👁️",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    layout="wide"
 )
 
-# ── Load Pretrained Model ───────────────────────────────────
+# ── Robust Model Loader (FIXED) ─────────────────────────────
 @st.cache_resource(show_spinner=False)
-def load_model():
-    return MobileNetV2(weights="imagenet")
+def load_model_fixed():
+    try:
+        with h5py.File("mobilenetv2_transfer_model.h5", "r") as f:
+            model_config = f.attrs.get("model_config")
 
-model = load_model()
+            if model_config is None:
+                return None, "No model config found in H5 file"
 
-# ── Background ──────────────────────────────────────────────
-@st.cache_data
-def get_bg_b64():
-    _path = pathlib.Path("bg_cnn.png")
-    if _path.exists():
-        return base64.b64encode(_path.read_bytes()).decode()
-    return ""
+            model_config = json.loads(model_config)
 
-_bg_b64 = get_bg_b64()
-_bg_css = f"url('data:image/png;base64,{_bg_b64}')" if _bg_b64 else "none"
+            # 🔥 Fix BatchNormalization axis issue everywhere
+            def fix_bn(config):
+                if isinstance(config, dict):
+                    if config.get("class_name") == "BatchNormalization":
+                        axis = config["config"].get("axis")
+                        if isinstance(axis, list):
+                            config["config"]["axis"] = axis[0]
 
-# ── Styles (UNCHANGED) ─────────────────────────────────────
-st.markdown("""<style>
-/* (Same CSS as your code — unchanged for brevity) */
-</style>""", unsafe_allow_html=True)
+                    for v in config.values():
+                        fix_bn(v)
 
-# ── Header ─────────────────────────────────────────────────
-now = datetime.datetime.now()
-st.markdown(f"""
-<div class="top-bar">
-    <div class="logo-area">
-        <div class="logo-icon">👁️</div>
-        <div class="logo-text">
-            <div class="logo-main">VISION AI</div>
-            <div class="logo-sub">INTELLIGENT SURVEILLANCE</div>
-        </div>
-    </div>
-    <div class="alert-banner">
-        <div style="display:flex; align-items:center; gap:1rem;">
-            <span style="font-size:1.2rem">⚠️</span>
-            <span style="font-weight:800">AI MONITORING ACTIVE</span>
-        </div>
-    </div>
-    <div class="time-area">
-        <div class="time-clock">{now.strftime("%H:%M:%S")}</div>
-        <div class="time-date">{now.strftime("%b %d, %Y")}</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+                elif isinstance(config, list):
+                    for item in config:
+                        fix_bn(item)
 
-# ── Layout ─────────────────────────────────────────────────
-main_col, side_col = st.columns([1.6, 0.9])
+            fix_bn(model_config)
 
-with main_col:
-    st.markdown("### 📡 Live Feed")
-    up_file = st.file_uploader("Upload CCTV snapshot...", type=["jpg","png","jpeg"])
+            # Rebuild model
+            model = model_from_json(json.dumps(model_config))
 
-    if up_file:
-        img = Image.open(up_file)
-        st.image(img, use_container_width=True)
-    else:
-        st.info("Upload an image to start detection")
+            # Load weights
+            model.load_weights("mobilenetv2_transfer_model.h5")
 
-with side_col:
-    st.markdown("### 🚨 Detection Summary")
+        return model, None
 
-    if up_file:
+    except Exception as e:
+        return None, str(e)
+
+model, error = load_model_fixed()
+
+# ── UI Header ───────────────────────────────────────────────
+st.title("🚨 VisionAI Detection System")
+st.markdown("Upload an image to analyze using MobileNetV2 Transfer Learning model")
+
+# ── Show Model Load Error ───────────────────────────────────
+if error:
+    st.error(f"❌ Model loading failed: {error}")
+
+# ── Upload Image ────────────────────────────────────────────
+uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None:
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Uploaded Image", use_column_width=True)
+
+    # ── Preprocess ──────────────────────────────────────────
+    img = image.resize((128, 128))
+    arr = img_to_array(img) / 255.0
+    arr = np.expand_dims(arr, axis=0)
+
+    # ── Predict ─────────────────────────────────────────────
+    if st.button("Analyze Image"):
         with st.spinner("Analyzing..."):
             time.sleep(1)
 
-            # ── Preprocess ─────────────────────────────
-            img_p = img.resize((224, 224))
-            arr = img_to_array(img_p)
-            arr = np.expand_dims(arr, axis=0)
-            arr = preprocess_input(arr)
+            if model is not None:
+                try:
+                    prob = model.predict(arr, verbose=0)[0][0]
 
-            # ── Predict ────────────────────────────────
-            preds = model.predict(arr)
-            decoded = decode_predictions(preds, top=3)[0]
+                    st.subheader("🔍 Result")
 
-            # ── Smart Accident Logic ──────────────────
-            accident_keywords = ["wreck", "ambulance", "fire_engine"]
-            vehicle_keywords = ["car", "truck", "bus", "motorcycle"]
+                    if prob > 0.5:
+                        st.error(f"⚠️ Positive Detection ({prob*100:.2f}%)")
+                    else:
+                        st.success(f"✅ Negative Detection ({(1-prob)*100:.2f}%)")
 
-            accident_score = 0
-            vehicle_score = 0
+                except Exception as pred_error:
+                    st.error(f"❌ Prediction failed: {pred_error}")
 
-            for (_, label, prob) in decoded:
-                label = label.lower()
-                if any(k in label for k in accident_keywords):
-                    accident_score += prob
-                if any(k in label for k in vehicle_keywords):
-                    vehicle_score += prob
-
-            if accident_score > 0.3:
-                accident = True
-                conf = accident_score * 100
-            elif vehicle_score > 0.5:
-                accident = False
-                conf = vehicle_score * 100
             else:
-                accident = False
-                conf = decoded[0][2] * 100
-
-            # ── UI Output ─────────────────────────────
-            if accident:
-                st.error(f"⚠️ ACCIDENT DETECTED — {conf:.2f}% confidence")
-            else:
-                st.success(f"✅ SAFE — {conf:.2f}% confidence")
-
-            st.markdown("#### 🔍 Top Predictions")
-            for i, (_, label, prob) in enumerate(decoded):
-                st.write(f"{i+1}. {label} — {prob*100:.2f}%")
-
-    else:
-        st.warning("Waiting for input...")
+                st.error("❌ Model not loaded properly. Check error above.")
 
 # ── Footer ─────────────────────────────────────────────────
 st.markdown("---")
-st.caption("Powered by MobileNetV2 (ImageNet pretrained)")
+st.caption("Powered by MobileNetV2 Transfer Learning")
