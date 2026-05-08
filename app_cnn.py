@@ -31,10 +31,12 @@ def load_model():
     
     # Construct a detailed error message
     if not errors:
-        error_msg = "Model files not found in the repository. Please ensure 'best_cnn_model_fixed.keras' is uploaded."
+        found_files = [f.name for f in pathlib.Path('.').iterdir() if f.is_file()]
+        error_msg = f"Model files not found. <br><b>Files found on server:</b> {', '.join(found_files)}"
     else:
         error_msg = "<br>".join(errors)
     return None, error_msg
+
 
 model, load_error = load_model()
 
