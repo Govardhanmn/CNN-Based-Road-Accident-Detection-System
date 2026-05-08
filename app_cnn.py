@@ -296,7 +296,7 @@ with main_col:
     up_file = st.file_uploader("Upload CCTV snapshot to analyze...", type=["jpg","png","jpeg"], label_visibility="collapsed")
     if up_file:
         img = Image.open(up_file)
-        st.image(img, use_container_width=True)
+        st.image(img, width='stretch')
     else:
         st.markdown('<div style="width:100%; aspect-ratio:16/9; background:rgba(0,0,0,0.3); border-radius:8px; display:flex; align-items:center; justify-content:center; color:#475569">NO ACTIVE FEED - UPLOAD IMAGE BELOW</div>', unsafe_allow_html=True)
     
