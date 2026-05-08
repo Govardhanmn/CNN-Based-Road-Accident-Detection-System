@@ -17,7 +17,7 @@ st.set_page_config(
 @st.cache_resource(show_spinner=False)
 def load_model():
     # Try multiple filenames in case of different deployment versions
-    models_to_try = ['best_cnn_model_fixed.keras', 'best_cnn_model.keras']
+    models_to_try = ['best_cnn_model.h5', 'best_cnn_model_fixed.keras', 'best_cnn_model.keras']
     errors = []
     
     for m_path in models_to_try:
