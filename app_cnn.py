@@ -18,8 +18,7 @@ st.set_page_config(
 def load_model():
     try:
         return tf.keras.models.load_model('best_cnn_model.keras')
-    except Exception as e:
-        st.error(f"Model could not be loaded: {e}")
+    except:
         return None
 
 model = load_model()
@@ -296,7 +295,7 @@ with main_col:
     up_file = st.file_uploader("Upload CCTV snapshot to analyze...", type=["jpg","png","jpeg"], label_visibility="collapsed")
     if up_file:
         img = Image.open(up_file)
-        st.image(img, width='stretch')
+        st.image(img, use_container_width=True)
     else:
         st.markdown('<div style="width:100%; aspect-ratio:16/9; background:rgba(0,0,0,0.3); border-radius:8px; display:flex; align-items:center; justify-content:center; color:#475569">NO ACTIVE FEED - UPLOAD IMAGE BELOW</div>', unsafe_allow_html=True)
     
@@ -313,47 +312,44 @@ with side_col:
     st.markdown('<div class="card-header">DETECTION SUMMARY</div>', unsafe_allow_html=True)
     
     if up_file:
-        if model is not None:
-            with st.spinner("AI analyzing..."):
-                time.sleep(1)
-                # Prediction
-                img_p = img.resize((128, 128))
-                arr = img_to_array(img_p)
-                arr = np.expand_dims(arr, axis=0) / 255.0
-                prob = model.predict(arr, verbose=0)[0][0]
-                accident = prob < 0.5
-                conf = (1-prob)*100 if accident else prob*100
-                
-                if accident:
-                    st.markdown(f"""
-                    <div class="summary-alert">
-                        <div style="font-size:3rem; margin-bottom:0.5rem">⚠️</div>
-                        <div class="sum-title">ACCIDENT DETECTED</div>
-                        <div style="display:flex; align-items:center; justify-content:center; gap:2rem; margin-top:1.5rem">
-                            <div style="text-align:left">
-                                <div style="font-size:0.65rem; color:#64748b">Confidence Score</div>
-                                <div style="font-size:1.8rem; font-weight:800">{conf:.0f}%</div>
-                            </div>
-                            <div class="gauge-container"><div class="circular-gauge" style="background:conic-gradient(#ef4444 {conf}%, rgba(255,255,255,0.05) 0)"></div></div>
+        with st.spinner("AI analyzing..."):
+            time.sleep(1)
+            # Prediction
+            img_p = img.resize((128, 128))
+            arr = img_to_array(img_p)
+            arr = np.expand_dims(arr, axis=0) / 255.0
+            prob = model.predict(arr, verbose=0)[0][0]
+            accident = prob < 0.5
+            conf = (1-prob)*100 if accident else prob*100
+            
+            if accident:
+                st.markdown(f"""
+                <div class="summary-alert">
+                    <div style="font-size:3rem; margin-bottom:0.5rem">⚠️</div>
+                    <div class="sum-title">ACCIDENT DETECTED</div>
+                    <div style="display:flex; align-items:center; justify-content:center; gap:2rem; margin-top:1.5rem">
+                        <div style="text-align:left">
+                            <div style="font-size:0.65rem; color:#64748b">Confidence Score</div>
+                            <div style="font-size:1.8rem; font-weight:800">{conf:.0f}%</div>
                         </div>
+                        <div class="gauge-container"><div class="circular-gauge" style="background:conic-gradient(#ef4444 {conf}%, rgba(255,255,255,0.05) 0)"></div></div>
                     </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                    <div class="summary-alert" style="background:rgba(16,185,129,0.05); border-color:rgba(16,185,129,0.2)">
-                        <div style="font-size:3rem; margin-bottom:0.5rem">✅</div>
-                        <div class="sum-title" style="color:#10b981">ROAD STATUS: SAFE</div>
-                        <div style="display:flex; align-items:center; justify-content:center; gap:2rem; margin-top:1.5rem">
-                            <div style="text-align:left">
-                                <div style="font-size:0.65rem; color:#64748b">Confidence Score</div>
-                                <div style="font-size:1.8rem; font-weight:800; color:#10b981">{conf:.0f}%</div>
-                            </div>
-                            <div class="gauge-container"><div class="circular-gauge" style="background:conic-gradient(#10b981 {conf}%, rgba(255,255,255,0.05) 0)"></div></div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="summary-alert" style="background:rgba(16,185,129,0.05); border-color:rgba(16,185,129,0.2)">
+                    <div style="font-size:3rem; margin-bottom:0.5rem">✅</div>
+                    <div class="sum-title" style="color:#10b981">ROAD STATUS: SAFE</div>
+                    <div style="display:flex; align-items:center; justify-content:center; gap:2rem; margin-top:1.5rem">
+                        <div style="text-align:left">
+                            <div style="font-size:0.65rem; color:#64748b">Confidence Score</div>
+                            <div style="font-size:1.8rem; font-weight:800; color:#10b981">{conf:.0f}%</div>
                         </div>
+                        <div class="gauge-container"><div class="circular-gauge" style="background:conic-gradient(#10b981 {conf}%, rgba(255,255,255,0.05) 0)"></div></div>
                     </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.error("AI model is not loaded. Please check the model file.")
+                </div>
+                """, unsafe_allow_html=True)
     else:
         st.markdown("""
         <div class="summary-alert">
