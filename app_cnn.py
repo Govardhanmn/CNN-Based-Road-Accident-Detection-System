@@ -16,25 +16,44 @@ st.set_page_config(
 # ── Resources ──────────────────────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_model():
+    # Try multiple filenames in case of different deployment versions
     models_to_try = ['best_cnn_model_fixed.keras', 'best_cnn_model.keras']
     errors = []
+    
     for m_path in models_to_try:
         try:
             if pathlib.Path(m_path).exists():
+                # compile=False is crucial for cross-version compatibility
                 model = tf.keras.models.load_model(m_path, compile=False)
                 return model, None
         except Exception as e:
-            errors.append(f"Error loading {m_path}: {str(e)}")
+            errors.append(f"<b>{m_path}</b>: {str(e)}")
     
-    error_msg = " | ".join(errors) if errors else "Model files not found."
+    # Construct a detailed error message
+    if not errors:
+        error_msg = "Model files not found in the repository. Please ensure 'best_cnn_model_fixed.keras' is uploaded."
+    else:
+        error_msg = "<br>".join(errors)
     return None, error_msg
 
 model, load_error = load_model()
 
 if load_error:
-    st.error(f"⚠️ Model Loading Failed")
-    st.info(f"Details: {load_error}")
+    st.error("🧪 Model Loading Failed")
+    st.markdown(f"""
+    <div style="background:rgba(220,38,38,0.1); padding:1rem; border-radius:8px; border:1px solid rgba(220,38,38,0.2); font-size:0.85rem; color:#fca5a5">
+        <strong>Error Details:</strong><br>{load_error}
+    </div>
+    <br>
+    <p style="font-size:0.9rem; color:#94a3b8">
+        <b>Possible Fixes:</b><br>
+        1. Ensure you have pushed the patched model <code>best_cnn_model_fixed.keras</code>.<br>
+        2. Check if <code>requirements.txt</code> has <code>tensorflow==2.15.0</code>.<br>
+        3. Clear the cache from the Streamlit 'Manage App' menu.
+    </p>
+    """, unsafe_allow_html=True)
     st.stop()
+
 
 # ── Background image ──────────────────────────────────────────────────────────
 @st.cache_data
