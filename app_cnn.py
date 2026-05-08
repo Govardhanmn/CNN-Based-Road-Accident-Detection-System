@@ -44,15 +44,19 @@ if load_error:
     <div style="background:rgba(220,38,38,0.1); padding:1rem; border-radius:8px; border:1px solid rgba(220,38,38,0.2); font-size:0.85rem; color:#fca5a5">
         <strong>Error Details:</strong><br>{load_error}
     </div>
+    <div style="margin-top:0.5rem; font-size:0.75rem; color:#64748b; font-family:monospace">
+        Environment: TF {tf.__version__} | Keras {tf.keras.__version__ if hasattr(tf.keras, '__version__') else '3+'}
+    </div>
     <br>
     <p style="font-size:0.9rem; color:#94a3b8">
-        <b>Possible Fixes:</b><br>
-        1. Ensure you have pushed the patched model <code>best_cnn_model_fixed.keras</code>.<br>
-        2. Check if <code>requirements.txt</code> has <code>tensorflow==2.15.0</code>.<br>
-        3. Clear the cache from the Streamlit 'Manage App' menu.
+        <b>Final Fix Checklist:</b><br>
+        1. <b>Push Fixed Model</b>: Ensure <code>best_cnn_model_fixed.keras</code> is pushed to GitHub.<br>
+        2. <b>Push Requirements</b>: Ensure <code>requirements.txt</code> has <code>tensorflow==2.15.0</code>.<br>
+        3. <b>Reboot App</b>: Go to Streamlit Cloud dashboard and click <b>'Reboot App'</b> to clear the environment.
     </p>
     """, unsafe_allow_html=True)
     st.stop()
+
 
 
 # ── Background image ──────────────────────────────────────────────────────────
